@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Linkly — Fast URL Shortener</title>
+  <meta name="description" content="Free, fast, and reliable URL shortener with QR codes and history." />
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+
+  <!-- Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css"/>
+
+  <!-- QRCode library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js" defer></script>
+
+  <style>
+    :root{
+      --bg: #0b1020;
+      --card: #0f1530;
+      --muted: #a0a7c0;
+      --text: #e9ecf8;
+      --primary: #7c5cff;
+      --primary-2: #5cb9ff;
+      --accent: #00e5a8;
+      --danger: #ff5575;
+      --ring: rgba(124,92,255,0.35);
+      --border: rgba(255,255,255,0.08);
+    }
+    *{box-sizing:border-box}
+    html,body{height:100%}
+    body{
+      margin:0;
+      font-family: Inter,system-ui,-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;
+      color:var(--text);
+      background:
+        radial-gradient(1200px 600px at 80% -10%, rgba(124,92,255,0.35), transparent 60%),
+        radial-gradient(1000px 600px at -10% 0%, rgba(92,185,255,0.25), transparent 60%),
+        linear-gradient(180deg, #0a0f21 0%, #0a0f21 40%, #0c1228 100%);
+      min-height:100%;
+      overflow-x:hidden;
+    }
+
+    .container{
+      max-width: 1000px;
+      margin: 0 auto;
+      padding: 24px;
+    }
+
+    header{
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:16px;
+      margin: 6px 0 24px;
+    }
+    .brand{
+      display:flex;align-items:center;gap:14px;
+    }
+    .logo{
+      width:42px;height:42px;border-radius:12px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      display:grid;place-items:center;
+      box-shadow: 0 10px 30px rgba(124,92,255,.45), inset 0 0 20px rgba(255,255,255,.15);
+    }
+    .logo i{color:white;font-size:20px}
+    .brand h1{
+      font-size:22px;letter-spacing:.2px;margin:0;font-weight:700;
+    }
+    .brand small{display:block;color:var(--muted);font-weight:500;margin-top:2px}
+
+    .card{
+      background:rgba(16, 22, 48, .8);
+      border:1px solid var(--border);
+      border-radius:18px;
+      padding:22px;
+      box-shadow: 0 10px 40px rgba(0,0,0,.35), inset 0 1px 0 rgba(255,255,255,.04);
+      backdrop-filter: blur(10px);
+    }
+
+    .grid{
+      display:grid;gap:16px;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width: 900px){
+      .grid{grid-template-columns: 1.2fr .8fr}
+    }
+
+    .input-row{
+      display:grid;gap:12px;
+      grid-template-columns: 1fr;
+    }
+    @media (min-width:700px){
+      .input-row{grid-template-columns: 1fr 220px 160px}
+    }
+
+    label{
+      display:block;color:var(--muted);font-size:13px;margin-bottom:8px;
+    }
+
+    .field, select{
+      width:100%;
+      background:#0c1331;
+      color:var(--text);
+      border:1px solid var(--border);
+      border-radius:12px;
+      padding:14px 14px;
+      font-size:15px;
+      outline:none;
+      transition:border .2s, box-shadow .2s, transform .05s;
+    }
+    .field:focus, select:focus{
+      border-color: var(--primary);
+      box-shadow: 0 0 0 6px var(--ring);
+    }
+    .hint{color:var(--muted);font-size:12px;margin-top:8px}
+
+    .btn{
+      display:inline-flex;align-items:center;justify-content:center;gap:10px;
+      padding:14px 18px;border:none;border-radius:12px;font-weight:700;
+      background: linear-gradient(135deg, var(--primary), var(--primary-2));
+      color:white;cursor:pointer;
+      transition: transform .05s ease, box-shadow .2s ease, opacity .2s ease;
+      box-shadow: 0 12px 30px rgba(124,92,255,.35);
+    }
+    .btn:active{transform: translateY(1px)}
+    .btn[disabled]{opacity:.6;cursor:not-allowed}
+
+    .btn-secondary{
+      background:#12183a;border:1px solid var(--border);color:var(--text);box-shadow:none;
+    }
+
+    .result{
+      margin-top:18px;
+      background:#0b1233;border:1px dashed var(--border);
+      border-radius:14px;padding:16px;
+    }
+
+    .result-row{
+      display:flex;flex-wrap:wrap;gap:10px;align-items:center;justify-content:space-between;
+    }
+    .short-url{
+      display:flex;align-items:center;gap:10px;flex:1;min-width:220px;
+      font-weight:700;font-size:16px;word-break:break-all;
+    }
+    .result-actions{display:flex;flex-wrap:wrap;gap:10px}
+    .pill{
+      display:inline-flex;align-items:center;gap:8px;
+      padding:10px 12px;border-radius:10px;border:1px solid var(--border);
+      background:#0f173a;font-size:14px;color:var(--text);
+    }
+
+    .qr{
+      display:grid;place-items:center;background:#0b1233;border:1px solid var(--border);
+      border-radius:14px;min-height:220px;padding:14px;
+    }
+
+    .history{
+      margin-top:20px;border-top:1px solid var(--border);padding-top:16px;
+    }
+    .history h3{margin:0 0 12px 0;font-size:16px;color:#cdd3ec}
+    .history-list{display:flex;flex-direction:column;gap:10px}
+    .history-item{
+      display:flex;gap:12px;align-items:center;justify-content:space-between;
+      background:#0d1436;border:1px solid var(--border);border-radius:12px;padding:10px 12px;
+    }
+    .history-item .meta{
+      display:flex;flex-direction:column;gap:4px;min-width:0;
+    }
+    .history-item .meta .title{
+      font-weight:700;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58vw;
+    }
+    .history-item .meta .orig{color:var(--muted);font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:58vw;}
+    .history-item .actions{display:flex;gap:8px}
+    .chip{
+      display:inline-flex;align-items:center;gap:6px;
+      padding:6px 10px;border-radius:999px;background:#0f173a;border:1px solid var(--border);font-size:12px;color:var(--muted);
+    }
+
+    .footer{
+      text-align:center;color:var(--muted);margin:30px 0 10px;font-size:13px;
+    }
+
+    .toast{
+      position: fixed; bottom:24px; left:50%; transform:translateX(-50%);
+      background:#0e1538;border:1px solid var(--border);color:var(--text);
+      padding:12px 16px;border-radius:10px; box-shadow:0 12px 30px rgba(0,0,0,.4);
+      display:none; z-index:9999;
+    }
+
+    .provider-tip{font-size:12px;color:var(--muted);margin-top:8px}
+    .subtle{color:var(--muted)}
+    /* Header */
+.main-header{
+  position:sticky;top:0;z-index:1000;
+  backdrop-filter: blur(16px);
+  background: rgba(15,20,40,.85);
+  border-bottom:1px solid var(--border);
+  padding:10px 0;
+}
+.nav-container{max-width:1200px;margin:0 auto;display:flex;align-items:center;justify-content:space-between;padding:0 24px;}
+    .nav-left{display:flex;align-items:center;gap:28px;}
+    .nav-logo{display:flex;align-items:center;gap:10px;font-size:20px;font-weight:700;color:var(--text);}
+    .nav-logo i{
+      background:linear-gradient(135deg,var(--primary),var(--primary-2));
+      color:#fff;padding:8px;border-radius:12px;
+      box-shadow:0 4px 16px rgba(124,92,255,.45);
+    }
+    .nav-links{display:flex;gap:22px;}
+    .nav-links a{
+      text-decoration:none;color:var(--muted);
+      font-size:15px;font-weight:500;
+      transition:color .2s;
+    }
+    .nav-links a:hover{color:var(--primary-2);}
+    .nav-right{display:flex;align-items:center;gap:16px;}
+    .nav-btn{
+      padding:10px 18px;border-radius:12px;
+      background:linear-gradient(135deg,var(--primary),var(--primary-2));
+      color:white;font-weight:600;text-decoration:none;
+      transition:transform .1s ease, box-shadow .2s;
+      box-shadow:0 8px 22px rgba(124,92,255,.4);
+    }
+    .nav-btn:hover{transform:translateY(-1px);}
+    .nav-toggle{display:none;background:none;border:none;color:var(--text);font-size:22px;cursor:pointer;}
+    @media(max-width:768px){
+      .nav-links{display:none;position:absolute;top:60px;left:0;right:0;
+        flex-direction:column;background:rgba(15,20,40,.95);
+        padding:20px;border-bottom:1px solid var(--border);}
+      .nav-links.active{display:flex;}
+      .nav-toggle{display:block;}
+    }
+
+/* Mobile nav */
+@media(max-width:768px){
+  .nav-links{display:none;position:absolute;top:60px;left:0;right:0;
+    flex-direction:column;background:rgba(15,20,40,.95);
+    padding:20px;border-bottom:1px solid var(--border);}
+  .nav-links.active{display:flex;}
+  .nav-toggle{display:block;}
+}
+ /* Ads */
+    .side-ad{
+      position:fixed;
+      top:120px;
+      z-index:999;
+      background:#0b1020;
+    }
+    .left-ad{left:0;}
+    .right-ad{right:0;}
+    .top-ad, .bottom-ad{width:100%;text-align:center;margin:10px 0;}
+    @media(max-width:1024px){.left-ad,.right-ad{display:none;}}
+  </style>
+</head>
+<body>
+<!-- Top Banner Ad -->
+  <div class="top-ad">
+    <script type="text/javascript">
+      atOptions = {
+        'key' : 'e34b5ecf5c5146a6f7fe687796b561ed',
+        'format' : 'iframe',
+        'height' : 90,
+        'width' : 728,
+        'params' : {}
+      };
+    </script>
+    <script type="text/javascript" src="//www.highperformanceformat.com/e34b5ecf5c5146a6f7fe687796b561ed/invoke.js"></script>
+  </div>
+<!-- Sticky Awesome Header -->
+<header class="main-header">
+  <div class="nav-container">
+    <div class="nav-left">
+      <div class="nav-logo">
+        <i class="fa-solid fa-link"></i>
+        <span>Linkly</span>
+      </div>
+      <nav class="nav-links">
+        <a href="#features">Features</a>
+        <a href="#how">How It Works</a>
+        <a href="#faq">FAQ</a>
+        <a href="#contact">Contact</a>
+      </nav>
+    </div>
+    &nbsp&nbsp<div class="nav-right">
+      <a href="#shortener" class="nav-btn">Shorten Link</a>
+      <button class="nav-toggle"><i class="fa-solid fa-bars"></i></button>
+    </div>
+  </div>
+</header>
+  <div class="container">
+    
+  <!-- Left Sidebar Ad -->
+  <div class="side-ad left-ad">
+    <script type="text/javascript">
+      atOptions = {
+        'key' : 'a63f42cee1dd5f06ac01782d8ef9bfc7',
+        'format' : 'iframe',
+        'height' : 600,
+        'width' : 160,
+        'params' : {}
+      };
+    </script>
+    <script type="text/javascript" src="//www.highperformanceformat.com/a63f42cee1dd5f06ac01782d8ef9bfc7/invoke.js"></script>
+  </div>
+
+  <!-- Right Sidebar Ad -->
+  <div class="side-ad right-ad">
+    <script type="text/javascript">
+      atOptions = {
+        'key' : '037592c53a0ff04c897e19d8cee256a7',
+        'format' : 'iframe',
+        'height' : 600,
+        'width' : 160,
+        'params' : {}
+      };
+    </script>
+    <script type="text/javascript" src="//www.highperformanceformat.com/037592c53a0ff04c897e19d8cee256a7/invoke.js"></script>
+  </div>
+    <header>
+      <div class="brand">
+        <div class="logo"><i class="fa-solid fa-link"></i></div>
+        <div>
+          <h1>Linkly</h1>
+          <small>Fast URL shortener with QR codes</small>
+        </div>
+      </div>
+    </header>
+    <section class="card">
+      <div style="margin-bottom:14px">
+        <h2 style="margin:0 0 6px 0;font-size:20px">Shorten a link</h2>
+        <p class="subtle" style="margin:0">Paste a long URL, pick a provider (optional), add an alias (is.gd only), and go!</p>
+      </div>
+
+      <div class="input-row">
+        <div>
+          <label for="longUrl">Long URL</label>
+          <input id="longUrl" class="field" type="url" placeholder="https://example.com/very/long/link?with=params" autocomplete="off" />
+          <p class="hint">Tip: Include <strong>http://</strong> or <strong>https://</strong></p>
+        </div>
+
+        <div>
+          <label for="alias">Custom Alias <span class="subtle">(is.gd)</span></label>
+          <input id="alias" class="field" type="text" placeholder="optional-alias" autocomplete="off" />
+          <p class="hint">If available, creates <code>https://is.gd/your-alias</code></p>
+        </div>
+
+        <div>
+          <label for="provider">Provider</label>
+          <select id="provider">
+            <option value="auto" selected>Auto (try multiple)</option>
+            <option value="cleanuri">CleanURI</option>
+            <option value="isgd">is.gd</option>
+            <option value="shrtco">shrtco.de</option>
+          </select>
+          <p class="provider-tip">Auto will fall back if one fails.</p>
+        </div>
+      </div>
+
+      <div style="margin-top:14px;display:flex;gap:10px;flex-wrap:wrap">
+        <button id="shortenBtn" class="btn"><i class="fa-solid fa-wand-magic-sparkles"></i> Shorten URL</button>
+        <button id="clearBtn" class="btn btn-secondary"><i class="fa-solid fa-rotate"></i> Clear</button>
+      </div>
+
+      <div id="result" class="result" style="display:none">
+        <div class="result-row">
+          <div class="short-url">
+            <i class="fa-solid fa-bolt"></i>
+            <a id="shortLink" href="#" target="_blank" rel="noopener" style="color:#a7c7ff;text-decoration:none"></a>
+          </div>
+          <div class="result-actions">
+            <button id="copyBtn" class="pill"><i class="fa-solid fa-copy"></i> Copy</button>
+            <button id="shareBtn" class="pill"><i class="fa-solid fa-share-nodes"></i> Share</button>
+            <span id="providerTag" class="chip"><i class="fa-solid fa-plug"></i> Provider</span>
+          </div>
+        </div>
+        <div style="margin-top:14px;display:grid;grid-template-columns:1fr 220px;gap:14px">
+          <div>
+            <span class="subtle">QR Code for the short link:</span>
+          </div>
+          <div class="qr"><div id="qrcode"></div></div>
+        </div>
+      </div>
+
+      <div class="history">
+        <h3>Recent links</h3>
+        <div id="historyList" class="history-list"></div>
+      </div>
+    </section>
+
+    <p class="footer">© <span id="year"></span> Linkly — Free URL Shortener • Your data stays in your browser</p>
+  </div>
+  <!-- Bottom Banner Ad -->
+  <div class="bottom-ad">
+    <script type="text/javascript">
+      atOptions = {
+        'key' : 'e34b5ecf5c5146a6f7fe687796b561ed',
+        'format' : 'iframe',
+        'height' : 90,
+        'width' : 728,
+        'params' : {}
+      };
+    </script>
+    <script type="text/javascript" src="//www.highperformanceformat.com/e34b5ecf5c5146a6f7fe687796b561ed/invoke.js"></script>
+  </div>
+  <div id="toast" class="toast"></div>
+
+  <script>
+    // Elements
+    const longUrlEl   = document.getElementById('longUrl');
+    const aliasEl     = document.getElementById('alias');
+    const providerEl  = document.getElementById('provider');
+    const shortenBtn  = document.getElementById('shortenBtn');
+    const clearBtn    = document.getElementById('clearBtn');
+    const resultBox   = document.getElementById('result');
+    const shortLinkEl = document.getElementById('shortLink');
+    const providerTag = document.getElementById('providerTag');
+    const copyBtn     = document.getElementById('copyBtn');
+    const shareBtn    = document.getElementById('shareBtn');
+    const qrWrap      = document.getElementById('qrcode');
+    const historyList = document.getElementById('historyList');
+    const toastEl     = document.getElementById('toast');
+    document.getElementById('year').textContent = new Date().getFullYear();
+
+    // Utils
+    const showToast = (msg) => {
+      toastEl.textContent = msg;
+      toastEl.style.display = 'block';
+      clearTimeout(showToast._t);
+      showToast._t = setTimeout(()=> toastEl.style.display = 'none', 2500);
+    };
+
+    const validURL = (url) => {
+      try {
+        const u = new URL(url);
+        return u.protocol === 'http:' || u.protocol === 'https:';
+      } catch { return false; }
+    };
+
+    const setLoading = (isLoading) => {
+      shortenBtn.disabled = isLoading;
+      shortenBtn.innerHTML = isLoading
+        ? '<i class="fa-solid fa-spinner fa-spin"></i> Shortening...'
+        : '<i class="fa-solid fa-wand-magic-sparkles"></i> Shorten URL';
+    };
+
+    // Providers
+    async function shortenWithCleanURI(longUrl){
+      const form = new URLSearchParams();
+      form.set('url', longUrl);
+      const res = await fetch('https://cleanuri.com/api/v1/shorten', {
+        method: 'POST',
+        headers: {'Content-Type':'application/x-www-form-urlencoded;charset=UTF-8'},
+        body: form
+      });
+      if(!res.ok) throw new Error('CleanURI error');
+      const data = await res.json();
+      if(!data.result_url) throw new Error(data.error || 'CleanURI failed');
+      return { short: data.result_url, provider: 'CleanURI' };
+    }
+
+    async function shortenWithIsGd(longUrl, alias){
+      const u = new URL('https://is.gd/create.php');
+      u.searchParams.set('format','json');
+      u.searchParams.set('url', longUrl);
+      u.searchParams.set('logstats','1');
+      if(alias) u.searchParams.set('shorturl', alias);
+
+      const res = await fetch(u.toString(), { method:'GET' });
+      if(!res.ok) throw new Error('is.gd error');
+      const data = await res.json();
+      if(data.errorcode) throw new Error(data.errormessage || 'is.gd failed');
+      if(!data.shorturl) throw new Error('is.gd failed');
+      return { short: data.shorturl, provider: 'is.gd' };
+    }
+
+    async function shortenWithShrtco(longUrl){
+      const u = new URL('https://api.shrtco.de/v2/shorten');
+      u.searchParams.set('url', longUrl);
+      const res = await fetch(u.toString(), { method:'GET' });
+      if(!res.ok) throw new Error('shrtco.de error');
+      const data = await res.json();
+      if(!data.ok || !data.result?.short_link) throw new Error('shrtco.de failed');
+      return { short: 'https://' + data.result.short_link, provider: 'shrtco.de' };
+    }
+
+    async function tryProviders(longUrl, alias, chosen){
+      const orderAuto = [shortenWithCleanURI, (u,a)=>shortenWithIsGd(u,a), shortenWithShrtco];
+      const map = {
+        cleanuri: shortenWithCleanURI,
+        isgd: (u,a)=>shortenWithIsGd(u,a),
+        shrtco: shortenWithShrtco,
+        auto: async (u,a)=>{
+          let lastErr;
+          for(const fn of orderAuto){
+            try { return await fn(u,a); } catch(e){ lastErr = e; }
+          }
+          throw lastErr || new Error('All providers failed.');
+        }
+      };
+      return map[chosen](longUrl, alias);
+    }
+
+    function renderQR(text){
+      qrWrap.innerHTML = '';
+      new QRCode(qrWrap, {
+        text,
+        width: 200,
+        height: 200,
+        correctLevel: QRCode.CorrectLevel.M
+      });
+    }
+
+    function saveHistory(item){
+      const key='linkly-history';
+      const list = JSON.parse(localStorage.getItem(key) || '[]');
+      list.unshift(item);
+      localStorage.setItem(key, JSON.stringify(list.slice(0,20)));
+      renderHistory();
+    }
+
+    function renderHistory(){
+      const list = JSON.parse(localStorage.getItem('linkly-history') || '[]');
+      historyList.innerHTML = '';
+      if(!list.length){
+        const empty = document.createElement('div');
+        empty.className='chip';
+        empty.innerHTML='<i class="fa-regular fa-clock"></i> Your recent links will appear here';
+        historyList.appendChild(empty);
+        return;
+      }
+      list.forEach((it, idx)=>{
+        const el = document.createElement('div');
+        el.className = 'history-item';
+        el.innerHTML = `
+          <div class="meta">
+            <div class="title"><a href="${it.short}" target="_blank" rel="noopener" style="color:#a7c7ff;text-decoration:none">${it.short}</a></div>
+            <div class="orig">${it.long}</div>
+          </div>
+          <div class="actions">
+            <button class="pill copy"><i class="fa-regular fa-copy"></i> Copy</button>
+            <button class="pill open"><i class="fa-solid fa-arrow-up-right-from-square"></i> Open</button>
+            <button class="pill del" title="Remove"><i class="fa-regular fa-trash-can"></i></button>
+          </div>
+        `;
+        el.querySelector('.copy').onclick = async ()=> {
+          await navigator.clipboard.writeText(it.short);
+          showToast('Copied to clipboard!');
+        };
+        el.querySelector('.open').onclick = ()=> window.open(it.short,'_blank');
+        el.querySelector('.del').onclick = ()=>{
+          const arr = JSON.parse(localStorage.getItem('linkly-history') || '[]');
+          arr.splice(idx,1);
+          localStorage.setItem('linkly-history', JSON.stringify(arr));
+          renderHistory();
+        };
+        historyList.appendChild(el);
+      });
+    }
+
+    // Actions
+    clearBtn.addEventListener('click', ()=>{
+      longUrlEl.value=''; aliasEl.value=''; longUrlEl.focus();
+      resultBox.style.display='none';
+      qrWrap.innerHTML='';
+    });
+
+    shortenBtn.addEventListener('click', async ()=>{
+      const longUrl = longUrlEl.value.trim();
+      const alias = aliasEl.value.trim();
+      const provider = providerEl.value;
+
+      if(!validURL(longUrl)){
+        showToast('Please enter a valid URL starting with http:// or https://');
+        longUrlEl.focus();
+        return;
+      }
+
+      setLoading(true);
+      try{
+        const { short, provider: used } = await tryProviders(longUrl, alias, provider);
+        shortLinkEl.href = short;
+        shortLinkEl.textContent = short;
+        providerTag.innerHTML = `<i class="fa-solid fa-plug"></i> ${used}`;
+        renderQR(short);
+        resultBox.style.display='block';
+        saveHistory({long: longUrl, short, provider: used, time: Date.now()});
+        showToast('Short link ready!');
+      }catch(err){
+        console.error(err);
+        showToast(err?.message || 'Failed to shorten. Try another provider.');
+      }finally{
+        setLoading(false);
+      }
+    });
+
+    copyBtn.addEventListener('click', async ()=>{
+      const txt = shortLinkEl.href;
+      if(!txt) return;
+      await navigator.clipboard.writeText(txt);
+      showToast('Copied to clipboard!');
+    });
+
+    shareBtn.addEventListener('click', async ()=>{
+      const url = shortLinkEl.href;
+      if(!url) return;
+      if(navigator.share){
+        try{
+          await navigator.share({ title:'Short link', text:'Here is your short link', url });
+        }catch{} // user cancelled
+      }else{
+        await navigator.clipboard.writeText(url);
+        showToast('Link copied (sharing not supported)');
+      }
+    });
+
+    // Enter key convenience
+    longUrlEl.addEventListener('keydown', (e)=> { if(e.key==='Enter') shortenBtn.click(); });
+    aliasEl.addEventListener('keydown', (e)=> { if(e.key==='Enter') shortenBtn.click(); });
+
+    // Init
+    renderHistory();
+
+    // Mobile nav toggle
+const navToggle = document.querySelector('.nav-toggle');
+const navLinks = document.querySelector('.nav-links');
+navToggle.addEventListener('click', ()=>{
+  navLinks.classList.toggle('active');
+});
+
+  </script>
+</body>
+</html>
