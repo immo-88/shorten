@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://immo-88.github.io/shorten/sitemap.xml
